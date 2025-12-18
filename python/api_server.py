@@ -3,8 +3,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from zk_pipeline import generate_proof
-from chain_verify import verify_on_chain
+from python.chain_verify import verify_on_chain
+from python.zk_pipeline import generate_proof
 
 app = FastAPI(title="Local Hardhat ZK Access Control (Python)")
 
