@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>ZK Age Verification (Local)</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 760px; margin: 40px auto; }
+    .card { padding: 16px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 16px; }
+    input { padding: 8px; width: 160px; }
+    button { padding: 10px 14px; cursor: pointer; }
+    pre { background: #f6f6f6; padding: 12px; border-radius: 8px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h2>ZK Age > 18 (Groth16) — Local Hardhat Demo</h2>
+
+  <div class="card">
+    <h3>1) Generate Proof</h3>
+    <div>
+      Birth Year:
+      <input id="birthYear" type="number" value="2002" />
+      Current Year:
+      <input id="currentYear" type="number" value="2025" />
+      <button onclick="prove()">Generate Proof</button>
+    </div>
+    <p id="proveStatus"></p>
+  </div>
+
+  <div class="card">
+    <h3>2) Verify On-Chain</h3>
+    <button onclick="verify()">Verify</button>
+    <p id="verifyStatus"></p>
+  </div>
+
+  <div class="card">
+    <h3>Response</h3>
+    <pre id="out">{}</pre>
+  </div>
+
+<script>
+const API = "http://127.0.0.1:8000";
+
+function setOut(obj) {
+  document.getElementById("out").textContent = JSON.stringify(obj, null, 2);
+}
+
+async function prove() {
+  document.getElementById("proveStatus").textContent = "Generating proof...";
+  const birthYear = Number(document.getElementById("birthYear").value);
+  const currentYear = Number(document.getElementById("currentYear").value);
+
+  const r = await fetch(`${API}/prove`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ birthYear, currentYear })
+  });
+
+  const data = await r.json();
+  setOut(data);
+  document.getElementById("proveStatus").textContent =
+    r.ok ? "Proof generated (proof.json/public.json updated)." : "Error generating proof.";
+}
+
+async function verify() {
+  document.getElementById("verifyStatus").textContent = "Verifying on-chain...";
+  const r = await fetch(`${API}/verify`);
+  const data = await r.json();
+  setOut(data);
+  document.getElementById("verifyStatus").textContent =
+    r.ok ? `On-chain OK: ${data.ok}` : "Error verifying.";
+}
+</script>
+</body>
+</html>

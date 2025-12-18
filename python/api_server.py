@@ -1,9 +1,19 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
+
 from zk_pipeline import generate_proof
 from chain_verify import verify_on_chain
 
 app = FastAPI(title="Local Hardhat ZK Access Control (Python)")
+
+# Serve UI
+app.mount("/ui", StaticFiles(directory="python/ui", html=True), name="ui")
+
+@app.get("/")
+def root():
+    return FileResponse("python/ui/index.html")
 
 class ProveReq(BaseModel):
     birthYear: int
