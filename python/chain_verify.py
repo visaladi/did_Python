@@ -17,7 +17,7 @@ ACCESS_ABI = [
             {"internalType": "uint256[2]", "name": "a", "type": "uint256[2]"},
             {"internalType": "uint256[2][2]", "name": "b", "type": "uint256[2][2]"},
             {"internalType": "uint256[2]", "name": "c", "type": "uint256[2]"},
-            {"internalType": "uint256[1]", "name": "publicSignals", "type": "uint256[1]"},
+            {"internalType": "uint256[2]", "name": "publicSignals", "type": "uint256[2]"},
         ],
         "name": "verifyAgeOver18",
         "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
@@ -41,7 +41,8 @@ def load_snarkjs_proof():
         [int(proof["pi_b"][1][1]), int(proof["pi_b"][1][0])],
     ]
     c = [int(proof["pi_c"][0]), int(proof["pi_c"][1])]
-    publicSignals = [int(public[0])]  # currentYear only
+    publicSignals = [int(public[0]), int(public[1])]
+
 
     return a, b, c, publicSignals
 
