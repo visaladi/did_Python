@@ -17,7 +17,7 @@ class VerifyResp(BaseModel):
 
 @app.post("/prove")
 def prove(req: ProveReq):
-    # Generates proof.json/public.json into artifacts_out
+    # Generate proof.json/public.json into artifacts_out
     generate_proof(req.birthYear, req.currentYear)
     return {"status": "proof_generated"}
 
