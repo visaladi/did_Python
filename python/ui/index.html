@@ -1,73 +1,303 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>ZK Age Verification (Local)</title>
+  <title>ZK Age Verification — ZK + MetaMask</title>
+
+  <!-- Ethers (MetaMask integration) -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+
+  <!-- Tesseract.js (OCR in browser, no server upload) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
   <style>
-    body { font-family: Arial, sans-serif; max-width: 760px; margin: 40px auto; }
-    .card { padding: 16px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 16px; }
-    input { padding: 8px; width: 160px; }
-    button { padding: 10px 14px; cursor: pointer; }
-    pre { background: #f6f6f6; padding: 12px; border-radius: 8px; overflow:auto; }
+    :root{
+      --bg:#0b0f1a; --card:#12182a; --stroke:#1e2545;
+      --text:#e6e9f0; --muted:#9aa4bf;
+      --accent:#4f8cff; --accent2:#6fa8ff;
+      --success:#2ecc71; --error:#ff5c5c;
+      --chip:#0b1024;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at top, #12182a, #0b0f1a 70%);
+      color:var(--text);
+    }
+    .container{max-width:980px; margin:40px auto; padding:20px;}
+    h1{margin:0 0 6px; text-align:center; font-weight:650;}
+    .subtitle{margin:0 0 24px; text-align:center; color:var(--muted);}
+    .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px;}
+    .card{
+      background:linear-gradient(180deg,#141a30,#0f1426);
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      padding:18px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    .card h3{margin:0 0 10px; font-weight:550;}
+    .row{display:flex; gap:10px; flex-wrap:wrap;}
+    label{display:block; font-size:13px; color:var(--muted); margin:10px 0 6px;}
+    input, .chip{
+      width:100%;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid #2a335f;
+      background:var(--chip);
+      color:var(--text);
+      font-size:14px;
+    }
+    .chip{width:auto; display:inline-flex; align-items:center; gap:8px;}
+    button{
+      width:100%;
+      padding:12px;
+      border-radius:12px;
+      border:none;
+      font-size:15px;
+      font-weight:600;
+      cursor:pointer;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      color:#fff;
+      transition:transform .12s ease, box-shadow .12s ease;
+      box-shadow:0 6px 18px rgba(79,140,255,.35);
+    }
+    button:hover{transform:translateY(-1px); box-shadow:0 10px 26px rgba(79,140,255,.45);}
+    button.secondary{
+      background:transparent;
+      border:1px solid #2a335f;
+      box-shadow:none;
+      color:var(--text);
+    }
+    .status{margin-top:10px; font-size:14px; color:var(--muted);}
+    .status.success{color:var(--success);}
+    .status.error{color:var(--error);}
+    pre{
+      background:#080c1d;
+      border:1px solid var(--stroke);
+      border-radius:12px;
+      padding:14px;
+      font-size:13px;
+      max-height:280px;
+      overflow:auto;
+      margin:0;
+    }
+    .bar{height:10px; border-radius:10px; background:#1a2144; overflow:hidden; margin-top:10px;}
+    .bar-fill{height:100%; width:0%; background:linear-gradient(90deg,#2ecc71,#5bff9c); transition:width .6s ease;}
+    .hint{color:var(--muted); font-size:13px; margin:6px 0 0;}
+    footer{margin-top:22px; text-align:center; color:var(--muted); font-size:13px;}
+    .small{font-size:12px; color:var(--muted);}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
   </style>
 </head>
+
 <body>
-  <h2>ZK Age > 18 (Groth16) — Local Hardhat Demo</h2>
+<div class="container">
+  <h1>Zero-Knowledge Age Verification</h1>
+  <p class="subtitle">Generate a Groth16 proof locally and verify it via a smart contract. Optional MetaMask + ID OCR demo.</p>
 
-  <div class="card">
-    <h3>1) Generate Proof</h3>
-    <div>
-      Birth Year:
-      <input id="birthYear" type="number" value="2002" />
-      Current Year:
-      <input id="currentYear" type="number" value="2025" />
-      <button onclick="prove()">Generate Proof</button>
+  <div class="grid">
+
+    <!-- MetaMask -->
+    <div class="card">
+      <h3>① MetaMask Connect</h3>
+
+      <div class="row">
+        <button onclick="connectWallet()">Connect MetaMask</button>
+        <button class="secondary" onclick="disconnectWallet()">Disconnect</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="chip"><span class="small">Wallet</span> <span id="walletAddr" class="mono">Not connected</span></div>
+        <div class="chip"><span class="small">Chain</span> <span id="walletChain" class="mono">—</span></div>
+      </div>
+
+      <p class="hint">For your local Hardhat chain, MetaMask must point to RPC <span class="mono">http://127.0.0.1:8545</span> and Chain ID <span class="mono">31337</span>.</p>
+      <div id="mmStatus" class="status"></div>
     </div>
-    <p id="proveStatus"></p>
+
+    <!-- ID OCR -->
+    <div class="card">
+      <h3>② Read Birth Year from ID Card (OCR)</h3>
+
+      <label>Upload ID image (clear photo / scan)</label>
+      <input id="idImage" type="file" accept="image/*" />
+
+      <button onclick="readBirthYearFromID()">Extract Birth Year</button>
+      <div id="ocrStatus" class="status"></div>
+
+      <p class="hint">
+        OCR runs in your browser using Tesseract.js (no upload to server). For best results: crop, good lighting, high contrast.
+      </p>
+      <p class="small">
+        Tip: If your ID contains a DOB like <span class="mono">2000-11-13</span>, OCR will detect the year <span class="mono">2000</span>.
+      </p>
+    </div>
+
+    <!-- Generate Proof -->
+    <div class="card">
+      <h3>③ Generate Proof</h3>
+
+      <label>Birth Year</label>
+      <input id="birthYear" type="number" value="2002" />
+
+      <label>Current Year</label>
+      <input id="currentYear" type="number" value="2025" />
+
+      <button onclick="prove()">Generate Zero-Knowledge Proof</button>
+      <div id="proveStatus" class="status"></div>
+
+      <div class="bar"><div id="ageBar" class="bar-fill"></div></div>
+      <p class="hint">This creates <span class="mono">proof.json</span> + <span class="mono">public.json</span> on your machine via your API.</p>
+    </div>
+
+    <!-- Verify -->
+    <div class="card">
+      <h3>④ Verify On-Chain</h3>
+      <p class="hint">Calls <span class="mono">AccessControl.verifyAgeOver18(...)</span> using the proof generated above.</p>
+
+      <button onclick="verify()">Verify Proof</button>
+      <div id="verifyStatus" class="status"></div>
+
+      <p class="small">MetaMask is optional here; your backend verifies via RPC. MetaMask is for demo UX and future upgrades (signed requests, DID binding).</p>
+    </div>
+
   </div>
 
-  <div class="card">
-    <h3>2) Verify On-Chain</h3>
-    <button onclick="verify()">Verify</button>
-    <p id="verifyStatus"></p>
-  </div>
-
-  <div class="card">
-    <h3>Response</h3>
+  <div class="card" style="margin-top:18px">
+    <h3>System Response</h3>
     <pre id="out">{}</pre>
   </div>
 
+  <footer>Circom • Groth16 • SnarkJS • Solidity • Hardhat • Python • FastAPI • MetaMask (optional)</footer>
+</div>
+
 <script>
 const API = "http://127.0.0.1:8000";
+let mmProvider = null;
+let mmSigner = null;
 
-function setOut(obj) {
-  document.getElementById("out").textContent = JSON.stringify(obj, null, 2);
+function setOut(obj){ document.getElementById("out").textContent = JSON.stringify(obj, null, 2); }
+function setStatus(id, msg, kind){
+  const el = document.getElementById(id);
+  el.textContent = msg || "";
+  el.className = "status" + (kind ? (" " + kind) : "");
 }
 
-async function prove() {
-  document.getElementById("proveStatus").textContent = "Generating proof...";
-  const birthYear = Number(document.getElementById("birthYear").value);
-  const currentYear = Number(document.getElementById("currentYear").value);
+async function connectWallet(){
+  try{
+    if(!window.ethereum){
+      setStatus("mmStatus","MetaMask not found. Install MetaMask extension.", "error");
+      return;
+    }
+    // Request accounts
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+
+    mmProvider = new ethers.BrowserProvider(window.ethereum);
+    mmSigner = await mmProvider.getSigner();
+
+    const addr = await mmSigner.getAddress();
+    const net = await mmProvider.getNetwork();
+
+    document.getElementById("walletAddr").textContent = addr;
+    document.getElementById("walletChain").textContent = `${net.chainId.toString()} (${net.name})`;
+
+    if (Number(net.chainId) !== 31337) {
+      setStatus("mmStatus", "Connected, but not on Hardhat chain (31337). Switch network in MetaMask.", "error");
+    } else {
+      setStatus("mmStatus", "Connected to Hardhat (31337).", "success");
+    }
+  } catch(e){
+    setStatus("mmStatus", "MetaMask connect failed: " + e.message, "error");
+  }
+}
+
+function disconnectWallet(){
+  mmProvider = null; mmSigner = null;
+  document.getElementById("walletAddr").textContent = "Not connected";
+  document.getElementById("walletChain").textContent = "—";
+  setStatus("mmStatus", "Disconnected (UI only).", "");
+}
+
+async function readBirthYearFromID(){
+  const f = document.getElementById("idImage").files?.[0];
+  if(!f){
+    setStatus("ocrStatus","Please choose an ID image first.", "error");
+    return;
+  }
+
+  setStatus("ocrStatus","Running OCR... (this may take 10–30 seconds)", "");
+  try{
+    const url = URL.createObjectURL(f);
+
+    const { data } = await Tesseract.recognize(url, "eng", {
+      logger: m => {
+        if (m.status === "recognizing text") {
+          setStatus("ocrStatus", `OCR: ${(m.progress*100).toFixed(0)}%`, "");
+        }
+      }
+    });
+
+    URL.revokeObjectURL(url);
+
+    const text = (data.text || "").replace(/\s+/g, " ").trim();
+    // Extract a plausible year (1900-2099)
+    const years = [...text.matchAll(/\b(19\d{2}|20\d{2})\b/g)].map(m => Number(m[1]));
+    if(!years.length){
+      setStatus("ocrStatus","Could not detect a year. Try a clearer image or crop to DOB area.", "error");
+      setOut({ ocrTextSample: text.slice(0, 500) });
+      return;
+    }
+
+    // Heuristic: pick the earliest year as birth year (often DOB year is earliest among found years)
+    years.sort((a,b)=>a-b);
+    const birthYear = years[0];
+
+    document.getElementById("birthYear").value = birthYear;
+    setStatus("ocrStatus", `Detected birth year: ${birthYear} (auto-filled)`, "success");
+    setOut({ detectedYears: years, selectedBirthYear: birthYear, ocrTextSample: text.slice(0, 500) });
+
+  } catch(e){
+    setStatus("ocrStatus","OCR failed: " + e.message, "error");
+  }
+}
+
+async function prove(){
+  setStatus("proveStatus","Generating proof...", "");
+  const by = Number(document.getElementById("birthYear").value);
+  const cy = Number(document.getElementById("currentYear").value);
+  const age = cy - by;
 
   const r = await fetch(`${API}/prove`, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ birthYear, currentYear })
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ birthYear: by, currentYear: cy })
   });
 
-  const data = await r.json();
+  const data = await r.json().catch(()=>({error:"Invalid JSON from server"}));
   setOut(data);
-  document.getElementById("proveStatus").textContent =
-    r.ok ? "Proof generated (proof.json/public.json updated)." : "Error generating proof.";
+
+  const bar = document.getElementById("ageBar");
+  bar.style.width = Math.min(Math.max(age/30, 0), 1) * 100 + "%";
+
+  if(r.ok){
+    setStatus("proveStatus","Proof generated (proof.json/public.json updated).", "success");
+  } else {
+    setStatus("proveStatus","Error generating proof.", "error");
+    bar.style.width = "0%";
+  }
 }
 
-async function verify() {
-  document.getElementById("verifyStatus").textContent = "Verifying on-chain...";
+async function verify(){
+  setStatus("verifyStatus","Verifying on-chain...", "");
   const r = await fetch(`${API}/verify`);
-  const data = await r.json();
+  const data = await r.json().catch(()=>({error:"Invalid JSON from server"}));
   setOut(data);
-  document.getElementById("verifyStatus").textContent =
-    r.ok ? `On-chain OK: ${data.ok}` : "Error verifying.";
+
+  if(r.ok && data.ok){
+    setStatus("verifyStatus","Access granted — proof verified on-chain.", "success");
+  } else {
+    setStatus("verifyStatus","Access denied — invalid proof / wrong chain / missing contract.", "error");
+  }
 }
 </script>
 </body>
