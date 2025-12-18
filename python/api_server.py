@@ -1,27 +1,19 @@
-import subprocess
-from pathlib import Path
 from fastapi import FastAPI
 from pydantic import BaseModel
-
-from chain_verify import verify_on_chain
 from zk_pipeline import generate_proof
+from chain_verify import verify_on_chain
 
-app = FastAPI(title="DID + ZK Access Control (Python)")
+app = FastAPI(title="Local Hardhat ZK Access Control (Python)")
 
 class ProveReq(BaseModel):
     birthYear: int
     currentYear: int
 
-class VerifyResp(BaseModel):
-    ok: bool
-
 @app.post("/prove")
 def prove(req: ProveReq):
-    # Generate proof.json/public.json into artifacts_out
     generate_proof(req.birthYear, req.currentYear)
     return {"status": "proof_generated"}
 
-@app.get("/verify", response_model=VerifyResp)
+@app.get("/verify")
 def verify():
-    ok = verify_on_chain()
-    return VerifyResp(ok=ok)
+    return {"ok": verify_on_chain()}
